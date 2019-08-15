@@ -1,6 +1,6 @@
-﻿<div class="tab_formation">
+<div class="tab_formation">
     <div class="panel">
-        <label class="view_equipment_button hover"><input type="checkbox" class="view_equipment">Equip</label>
+        <label class="view_equipment_button hover"><input type="checkbox" class="view_equipment">View Equipment</label>
         <label class="skill_all_button hover"><input type="checkbox" class="skill_all">All Skills</label>
         <table class="formation" border="1" cellpadding="0">
         </table>
@@ -38,7 +38,7 @@
                         <option value="10">10</option>
                         <option value="1">1</option>
                     </select>
-                    <label class="skill_control_label"><input type="checkbox" class="skill_control">Skill</label>
+                    <label class="skill_control_label"><input type="checkbox" class="skill_control" checked>Skill</label>
                     <select class="skill_level">
                         <option value="10">10</option>
                         <option value="9">9</option>
@@ -63,10 +63,11 @@
         <div class="calculate_control">
             <div class="button hover calculate">Plot DPS Graph</div>
             <div class="control_input"><input type="text" class="endTime" value="20"/>s</div>
-            <div class="control_input walkTime">walk time<input type="text" value="0"/>s</div>
+            <div class="control_input walkTime">Walk time<input type="text" value="0"/>s</div>
             <div class="button hover dmgLinkSwitch ">Switch link</div>
             <div class="clear"></div>
             <div class="button hover simulation">Simulation table</div>
+            <span style="font-size:48px;color:red;padding-left:20px;vertical-align:middle">THIS SIM IS OUTDATED USE <a href="http://brainlets.moe/gf/sim/">http://brainlets.moe/gf/sim/</a> INSTEAD</span>
         </div>
         <div class="clear"></div>
         <div class="performance_header">
@@ -104,13 +105,13 @@
         </div>
         <div class="clear"></div>
         <div class="battle_control">
-            <div class="control_input">Enemy EVA<input type="text" class="enemyDodge" value="10"/></div>
-            <div class="control_input">Enemy Armor<input type="text" class="enemyArmor" value="0"/></div>
-            <div class="control_input">Enemy Count<input type="text" class="enemyCount" value="1"/></div>
+            <div class="control_input">Enemy EVA<br/><input type="text" class="enemyDodge" value="15"/></div>
+            <div class="control_input">Enemy Armor<br/><input type="text" class="enemyArmor" value="0"/></div>
+            <div class="control_input">Enemy Count<br/><input type="text" class="enemyCount" value="1"/></div>
             <div class="control_input"><label class="hover"><input type="checkbox" class="enemyEliteTarget" checked="checked">Boss</label></div>
             <div class="control_input"><label class="hover"><input type="checkbox" class="battleisNight">Night</label></div>
             <div class="battleFortress_container">
-                <label class="hover"><input type="checkbox" class="battleFortress">Fortress Lv</label>
+                <label class="hover"><input type="checkbox" class="battleFortress">Fortress Lv</label><br/>
                 <select class="fortress_level">
                     <option value="10">10</option>
                     <option value="9">9</option>
@@ -123,6 +124,13 @@
                     <option value="2">2</option>
                     <option value="1">1</option>
                 </select>
+            </div>
+        </div>
+        <div class="clear"></div>
+        <div>
+            <div class="button hover import_export"></div>
+            <div class="container_save_load">
+
             </div>
         </div>
     </div>
@@ -156,7 +164,7 @@
 
 <div id="picker_by_type" title="Select T-Doll">
     <div class="panel-title pull-right">
-        <p style="color:#FF6A38">※ Red means T-Doll is not available on global yet</p>
+        <p style="color:#FF6A38">※ Greyed-out button means the T-Doll is not available on EN.</p>
     </div>
     <div class="picker_char_container">
         Tiles
@@ -247,6 +255,44 @@
     <div class="button hover close">Close</div>
 </div>
 
+<div id="save-hover" title="">
+    <div class="save-hover-container">
+        <span>
+            <table class="save-hover-table">
+                <tr>
+                    <td class="save-hover-cell save-hover-cell-7"></td>
+                    <td class="save-hover-cell save-hover-cell-8"></td>
+                    <td class="save-hover-cell save-hover-cell-9"></td>
+                </tr>
+                <tr>
+                    <td class="save-hover-cell save-hover-cell-4"></td>
+                    <td class="save-hover-cell save-hover-cell-5"></td>
+                    <td class="save-hover-cell save-hover-cell-6"></td>
+                </tr>
+                <tr>
+                    <td class="save-hover-cell save-hover-cell-1"></td>
+                    <td class="save-hover-cell save-hover-cell-2"></td>
+                    <td class="save-hover-cell save-hover-cell-3"></td>
+                </tr>
+            </table>
+        </span>
+        <span class="save-hover-fairy-container">
+
+        </span>
+    </div>
+</div>
+    
+<div id="import-export-hover" title="">
+    <div>
+        <textarea rows="20" cols="120" id="import-export-contents"
+        style="resize: none; font-family: monospace" data-role="none"></textarea>
+    </div>
+    <div>
+        <div class="button_wide hover button_import"></div>
+        <div class="button_wide hover button_copy_to_clipboard"></div>
+    </div>
+</div>
+    
 <div id="detail" title="">
     <div class="detail_container">
     </div>
@@ -262,12 +308,15 @@
 
 <div id="updateDialog" title="">
     <div>
-        <a href="https://github.com/gfeAsdf/gf">
-            <img src="https://assets-cdn.github.com/images/modules/logos_page/GitHub-Mark.png">github</a> UID:74354
+        <a href="https://github.com/AristocratMC/gf">
+            <img src="https://assets-cdn.github.com/images/modules/logos_page/GitHub-Mark.png">github
+        </a> repository
         <br>
         Original code by <a href="https://github.com/ynntk4815/gf">ynntk4815</a>
-		<br>
-		Autoformation by <a href="https://github.com/chibimonxd/gf">chibimonxd</a>
+        <br>
+        Initial Translation by <a href="https://github.com/gfeAsdf/gf">gfeAsdf</a>
+        <br>
+        Autoformation by <a href="https://github.com/chibimonxd/gf">chibimonxd</a>
     </div>
     <br>
     <div class="text"></div>
@@ -311,13 +360,13 @@
                         <option value="1">1</option>
                     </select>
                     <select class="modLevel">
-                        <option value="3">mod3</option>
-                        <option value="2">mod2</option>
-                        <option value="1">mod1</option>
+                        <option value="3">MOD III</option>
+                        <option value="2">MOD II</option>
+                        <option value="1">MOD I</option>
                     </select>
                 </div>
                 <div class="item skill_control_container">
-                    <label><input type="checkbox" class="skill_control">Skill</label>
+                    <label><input type="checkbox" class="skill_control" checked>Skill</label>
                 </div>
                 <div class="item">
                     <select class="skill_stack">
@@ -343,21 +392,24 @@
                 </div>
                 <div class="item">
                     <select class="mod_skill_level">
-                        <option value="10">技二10</option>
-                        <option value="9">技二9</option>
-                        <option value="8">技二8</option>
-                        <option value="7">技二7</option>
-                        <option value="6">技二6</option>
-                        <option value="5">技二5</option>
-                        <option value="4">技二4</option>
-                        <option value="3">技二3</option>
-                        <option value="2">技二2</option>
-                        <option value="1">技二1</option>
+                        <option value="10">(Skill 2) 10</option>
+                        <option value="9">(Skill 2) 9</option>
+                        <option value="8">(Skill 2) 8</option>
+                        <option value="7">(Skill 2) 7</option>
+                        <option value="6">(Skill 2) 6</option>
+                        <option value="5">(Skill 2) 5</option>
+                        <option value="4">(Skill 2) 4</option>
+                        <option value="3">(Skill 2) 3</option>
+                        <option value="2">(Skill 2) 2</option>
+                        <option value="1">(Skill 2) 1</option>
                     </select>
                 </div>
             </div>
             <div class="friendship hover" value="friendly">
                 <img src="assets/friendly.png">
+            </div>
+            <div class="buffs">
+                
             </div>
         </div>
         <div class="equipment_container xhidden">
@@ -452,6 +504,8 @@
         <div class="value dps">-</div>
         <div class="title skillAttack">Skill DMG</div>
         <div class="value skillAttack">-</div>
+        <div class="title targetCount">Targets</div>
+        <div class="value targetCount">-</div>
         <div class="clear"></div>
     </div>
 </div>

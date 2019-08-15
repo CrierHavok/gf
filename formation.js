@@ -1,4 +1,4 @@
-﻿
+
 const TYPES = ["hg", "smg", "ar", "rf", "mg", "sg"];
 const GRIDS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const SKILL_TYPE_IS_PERCENT = ["hit", "dodge", "armor", "fireOfRate", "dmg", "criRate", "cooldownTime", "criDmg", "movementSpeed", "rate", "reducedDamage"];
@@ -80,6 +80,321 @@ var targetFilter = (v => {
     }
     return true;
 });
+
+function exportSaveData() {
+    let oJson = {};
+    let sKey;
+    for (let i = 0; window.localStorage.key(i) != null; i++) {
+        sKey = window.localStorage.key(i);
+        oJson[sKey] = JSON.parse(window.localStorage.getItem(sKey));
+    }
+    return JSON.stringify(oJson, null, 4);
+}
+
+// Returns number of teams imported
+function importSaveData(jsonText) {
+    localStorage.clear();
+    let oJson = JSON.parse(jsonText);
+    let i = 0;
+    for (let key in oJson) {
+        i++;
+        localStorage.setItem(key, JSON.stringify(oJson[key]));
+    }
+    initSaveRows();
+    return i;
+}
+
+function getStorage(index) {
+    if (typeof(Storage) !== "undefined") {
+        let result = localStorage.getItem("gfl-sim-save-data-" + index);
+        if (result != null) {
+            return JSON.parse(result);
+        } else {
+            return null;
+        }
+    } else {
+        return null;
+    }
+}
+
+function setStorage(index, contents) {
+    if (typeof(Storage) !== "undefined") {
+        if (contents != null) {
+            localStorage.setItem("gfl-sim-save-data-" + index, JSON.stringify(contents));
+        } else {
+            localStorage.removeItem("gfl-sim-save-data-" + index);
+        }
+    } else {
+
+    }
+}
+
+function initSaveRows() {
+    let container = $('.container_save_load');
+    container.html('');
+    let i = 1;
+    do {
+        createNewRow(i);
+        console.log('GetStorage(' + i + ') ' + JSON.stringify(getStorage(i)));
+    } while (getStorage(i++) != null && i < 50);
+}
+
+function createNewRow(i) {
+    let container = $('.container_save_load');
+    let row = $('<div></div>').addClass('row_save_load');
+    let delButton = $('<span></span>').addClass('button hover button_compact button_del').html('Del').attr('data-index', i);
+    let saveButton = $('<span></span>').addClass('button hover button_compact button_save').html('Save').attr('data-index', i);
+    let loadButton = $('<span></span>').addClass('button hover button_compact button_load').html('Load').attr('data-index', i);
+    let contents = $('<span></span>').addClass('save_file_contents').attr('data-index', i);
+
+    delButton.click(function() {
+        var index = $.parseJSON($(this).attr('data-index'));
+        if (confirm('Are you sure you want to delete save #' + index + "?")) {
+            let incr = index;
+            let nextSave;
+            do {
+                nextSave = getStorage(++incr);
+                setStorage(incr - 1, nextSave);
+            } while (nextSave != null);
+            
+            initSaveRows();
+        }
+    });
+
+
+    saveButton.click(function() {
+        var index = $.parseJSON($(this).attr('data-index'));
+
+        if (typeof(Storage) !== "undefined") {
+            console.log(mGridToChar);
+
+            if (localStorage.getItem("gfl-sim-save-data-" + index) == null) {
+                createNewRow(index + 1);
+            }
+
+            // Store
+            localStorage.setItem("gfl-sim-save-data-" + index, JSON.stringify(generateSaveData()));
+            
+
+            let contents = $('.save_file_contents[data-index="' + index + '"]');
+            updateHover(contents, localStorage.getItem("gfl-sim-save-data-" + index));
+
+            contents.html(getSaveContents(index));
+          }
+    });
+
+    loadButton.click(function() {
+        var index = $.parseJSON($(this).attr('data-index'));
+        
+        if (typeof(Storage) !== "undefined") {
+            // Retrieve
+            let saveData = localStorage.getItem("gfl-sim-save-data-" + index);
+
+            console.log('Loaded save data: ');
+            console.log(saveData);
+
+            loadSaveData(saveData);
+        }
+    });
+
+    contents.html(getSaveContents(i));
+    
+    updateHover(contents);
+
+    row.append(delButton).append(saveButton).append(loadButton).append(contents);
+    container.append(row);
+}
+
+function updateHover(contents) {
+    contents.hover(function(){
+        var index = $.parseJSON($(this).attr('data-index'));
+        
+        $('#save-hover').dialog({
+            position: {
+                my: "left bottom", at: "right top", of: $(this)
+            }
+        });
+
+        for (let i = 1; i <= 9; i++) {
+            $("#save-hover .save-hover-cell-" + i).html("");
+        }
+
+        let saveData = localStorage.getItem("gfl-sim-save-data-" + index);
+
+        if (saveData != null) {
+            saveData = JSON.parse(saveData);
+        }
+
+        if (saveData != null && !jQuery.isEmptyObject(saveData["char"])) {
+            var formation = saveData["char"];
+            $.each(formation, function(key, val) {
+                let char = getChar(val.id);
+
+                // Add chibi 
+                let image = $("<div></div>").addClass('save-hover-cell-wrapper').append(getCharImgUIObj(val.id).addClass('save-hover-cell-img'));
+                image.append($('<span></span>').addClass('save-hover-cell-level-info').html('Level: ' + val.lv + '<br />' + 'Skill: ' + val.slv));
+
+                let cell = $("#save-hover .save-hover-cell-" + val.g);
+                cell.html(image);
+
+                // Add tile buffs
+                let buffGrid = $('.factory .aura_container').clone();
+                buffGrid.addClass('save-hover-cell-buff-info');
+                updateAuraUI(buffGrid, char);
+
+                image.append(buffGrid);
+            });
+        } else {
+            console.log('saveData was null: ' + saveData)
+        }
+
+        if (saveData != null && !jQuery.isEmptyObject(saveData["fairy"])) {
+            let fairy = getFairy(saveData.fairy.id);
+            fairy.mastery = getMastery(saveData.fairy.m);
+            let fairy_info =
+            "★".repeat(saveData.fairy.r) + ' ' + fairy.name 
+            + '<br />' + 'Lv: ' + (saveData.fairy.lv)
+            + '<br />' + 'Skill: ' + (saveData.fairy.isUseSkill ? 'On' : 'Off')
+            + '<br />' + '[' + fairy.mastery.name + ']';
+                    
+            var item = $('<div></div>').addClass('fairy_preview hover').append(
+                $('<span></span>').html(fairy_info).addClass('fairy_preview_inner_text')
+            );
+            item.css('background-image', 'url("assets/fairyButtons/' + parseInt(fairy.id) + '.png")');
+            $('.save-hover-fairy-container').html(item);
+        }
+
+
+        $('#save-hover').dialog("open");
+    }, function(){
+        $('#save-hover').dialog("close");
+    });
+}
+
+function getSaveContents(i) {
+    let saveData = JSON.parse(localStorage.getItem("gfl-sim-save-data-" + i));
+    console.log(saveData);
+
+    let nameArray = [];
+
+    if (saveData != null && !jQuery.isEmptyObject(saveData["char"])) {
+        var formation = saveData["char"];
+        $.each(formation, function(key, val) {
+            let char = getChar(val.id);
+            nameArray.push(char.name);
+        });
+    } else {
+        return 'None';
+    }
+
+    let battleTime = saveData.isNight ? '🌑' : '🌤️';
+    let dps = (saveData != null && !jQuery.isEmptyObject(saveData["dps"])) ? saveData.dps.d8sSum : 'undefined';
+    dps = " [DPS 8s: " + dps + "] ";
+
+    let fairy = 'No Fairy'
+
+    if (saveData != null && !jQuery.isEmptyObject(saveData["fairy"])) {
+        fairy = getFairy(saveData.fairy.id).name;
+    }
+
+    fairy = ' - ' + fairy;
+
+    return battleTime + dps + nameArray.join(', ') + fairy;
+}
+
+function loadSaveData(saveData) {
+    for (let i = 0; i < 9; i++) {
+        removeChar(i);
+    }
+    removeFairy();
+    var preObject = JSON.parse(saveData);
+    if (!jQuery.isEmptyObject(preObject["char"])) {
+        var formation = preObject["char"];
+        $.each(formation, function(key, val) {
+            var controlUI = getGridUiObj(""+val.g).find(".control_container");
+            var equipmentUI = getGridUiObj(""+val.g).find(".equipment_container");
+            if ('lv' in val) controlUI.find(".level").val(val.lv);
+            if ('modlv' in val) controlUI.find(".modLevel").val(val.modlv);
+            if ('mod2slv' in val) controlUI.find(".mod_skill_level").val(val.mod2slv);
+            controlUI.find(".skill_level").val(val.slv);
+            addChar(val.g, val.id);
+            for (var i in val.eq) {
+                var e = val.eq[i];
+                addEquipment(val.g, e.i, e.id);
+                equipmentUI.find(".equipment_strengthen_"+e.i).val(e.lv);
+            }
+        });
+    }
+
+    if (!jQuery.isEmptyObject(preObject["fairy"])) {
+        var fairyControlContainer = $(".fairy_container .fairy_control_container");
+        fairyControlContainer.find(".level").val(preObject["fairy"].lv);
+        fairyControlContainer.find(".rarity").val(preObject["fairy"].r);
+        fairyControlContainer.find(".skill_level").val(preObject["fairy"].slv);
+        fairyControlContainer.find(".mastery").val(preObject["fairy"].m);
+        fairyControlContainer.find(".skill_control_label").val(preObject["fairy"].isUseSkill);
+        addFairy(preObject["fairy"].id);
+    }
+
+    // Apply metadata 
+    $('.battleisNight').prop('checked', preObject.isNight);
+    $('.enemyEliteTarget').prop('checked', preObject.enemyEliteTarget || true);
+    $('.enemyDodge').val(preObject.enemyDodge || 15);
+    $('.enemyArmor').val(preObject.enemyArmor || 0);
+    $('.enemyCount').val(preObject.enemyCount || 1);
+}
+
+function generateSaveData() {
+    var preLoadCode = {};
+    var formation = [];
+    var fairy = {};
+    for (var i in mGridHasChar) {
+        var grid = getGridByUIValue(mGridHasChar[i]);
+        if (mGridToChar[grid] != "") {
+            var charObj = mGridToChar[grid];
+
+            var charRow = {};
+            charRow.g = grid;
+            charRow.id = charObj.id;
+            if (charObj.c.modLevel > 0) {
+                charRow.modlv = charObj.c.modLevel;
+            } else {
+                charRow.lv = charObj.c.level;
+            }
+            if (charObj.c.modLevel >= 2) {
+                charRow.mod2slv = charObj.c.mod2SkillLevel;
+            }
+            charRow.slv = charObj.c.skillLevel;
+            charRow.eq = charObj.equipment_code;
+            formation.push(charRow);
+            // index++;  // What is this for?
+        }
+    }
+
+    if (mFairy != null) {
+        fairy.id = mFairy.id;
+        fairy.lv = mFairy.level;
+        fairy.r = mFairy.rarity;
+        fairy.slv = mFairy.skillLevel;
+        fairy.m = mFairy.mastery.id;
+        fairy.isUseSkill = mFairy.isUseSkill;
+    }
+    
+    preLoadCode["char"] = formation;
+    preLoadCode["fairy"] = fairy;
+    preLoadCode["dps"] = {
+        d8sSum  : $('.value.d8sSum').html(),
+        d20sSum : $('.value.d20sSum').html()
+    };
+    preLoadCode["fairy"] = fairy;
+    preLoadCode["isNight"] = $('.battleisNight').prop('checked');
+    preLoadCode["enemyEliteTarget"] = $('.enemyEliteTarget').prop('checked');
+    preLoadCode["enemyDodge"] = $('.enemyDodge').val();
+    preLoadCode["enemyArmor"] = $('.enemyArmor').val();
+    preLoadCode["enemyCount"] = $('.enemyCount').val();
+
+    return preLoadCode;
+}
 
 function init() {
     initData();
@@ -255,40 +570,16 @@ function init() {
         $('#picker_fairy').dialog("close");
     });
 
+
+    initSaveRows();
+
     var pre = getUrlParameter('pre');
     if (pre) {
-        var preObject = JSON.parse(pre);
-        if (!jQuery.isEmptyObject(preObject["char"])) {
-            var formation = preObject["char"];
-            $.each(formation, function(key, val) {
-                var controlUI = getGridUiObj(""+val.g).find(".control_container");
-                var equipmentUI = getGridUiObj(""+val.g).find(".equipment_container");
-                if ('lv' in val) controlUI.find(".level").val(val.lv);
-                if ('modlv' in val) controlUI.find(".modLevel").val(val.modlv);
-                if ('mod2slv' in val) controlUI.find(".mod_skill_level").val(val.mod2slv);
-                controlUI.find(".skill_level").val(val.slv);
-                addChar(val.g, val.id);
-                for (var i in val.eq) {
-                    var e = val.eq[i];
-                    addEquipment(val.g, e.i, e.id);
-                    equipmentUI.find(".equipment_strengthen_"+e.i).val(e.lv);
-                }
-            });
-        }
-
-        if (!jQuery.isEmptyObject(preObject["fairy"])) {
-            var fairyControlContainer = $(".fairy_container .fairy_control_container");
-            fairyControlContainer.find(".level").val(preObject["fairy"].lv);
-            fairyControlContainer.find(".rarity").val(preObject["fairy"].r);
-            fairyControlContainer.find(".skill_level").val(preObject["fairy"].slv);
-            fairyControlContainer.find(".mastery").val(preObject["fairy"].m);
-            addFairy(preObject["fairy"].id);
-        }
+        loadSaveData(pre);
     }
 
     $('.aura_container').hover(function(){
         $('#detail').dialog({position: {my: "left top", at: "right top", of: $(this)}});
-        $("#detail .detail_container").html("");
 
         var charObj = mGridToChar[getGridByUi($(this))];
         var aura = charObj.aura;
@@ -424,6 +715,38 @@ function init() {
     $('.last_update_time').html(mStringData["last_update"] + " " + mUpdate[0].date.yyyymmdd());
     $('.update_log').click(function() {
         $('#updateDialog').dialog("open");
+    });
+
+    // Import/Export window button
+    $('.import_export').html("Import/Export");
+    $('.import_export').click(function() {
+        $('#import-export-contents').val(exportSaveData());
+        $('.button_copy_to_clipboard').html("Copy to Clipboard");
+        $('.button_import').html("Import");
+        $('#import-export-hover').dialog("open");
+    });
+
+    // Import/Export window body options
+    $('.button_copy_to_clipboard').click(function() {
+        $('#import-export-contents').select();
+        document.execCommand("copy");
+        $(this).html("Copied to Clipboard!")
+    });
+
+    // Import/Export window body options
+    $('.button_import').click(function() {
+        let backup = exportSaveData();
+        console.log(backup);
+        try {
+            $('#import-export-contents').blur();
+            let importObj = $('#import-export-contents').val();
+            let teamCount = importSaveData(importObj);
+            $(this).html("Imported " + teamCount + " teams!");
+        } catch(err) {
+            alert(err);
+            importSaveData(backup);
+            $(this).html("Import failed!");
+        }
     });
 
     $('.select_fairy').click(function() {
@@ -632,6 +955,9 @@ function getSkillDetailNormal(charObj) {
                 } else if (key == "ammoCount") {
                     s += mStringData.addAmmoCount.format(val.val);
                     text.push(s);
+                } else if (key == "targetCount") {
+                    s += mStringData.targetCount.format(val.val);
+                    text.push(s);
                 }
             });
         }
@@ -671,13 +997,15 @@ function initDialog() {
     });
     $('#updateDialog').dialog({autoOpen: false, width: 'auto', modal : true});
     $('#updateDialog').dialog({position: {my: "left bottom", at: "left top", of: ".update_log"}});
+    $('#save-hover').dialog({autoOpen: false, position: {my: "left bottom", at: "right top", of: $(this)}, width: 535});
+    $('#import-export-hover').dialog({autoOpen: false, width: 'auto', modal : true});
 
     var row = $('<tr></tr>');
     var typeList = copyObject(TYPES);
-    typeList.push(MOD);
+    // typeList.push(MOD);
     typeList.forEach(v => {
-        var item = $('<div></div>').addClass("pick_button hover").html(v).attr("value", v).click(function() {
-            openDialogPickerByType($(this).attr("value"));
+        var item = $('<div></div>').addClass("pick_button pick_button_icon hover pick_button_" + v).html("").click(function() {
+            openDialogPickerByType(v);
         });
         $('<td></td>').append(item).appendTo(row);
     });
@@ -849,13 +1177,46 @@ function updatePickerByType(type, auraAttr) {
             return result;
         });
         grepList.forEach(function(v) {
-            var buttonClass = "pick_button hover rarity_"+nowVal;
-            if (isUnreleased(v.id)) {
-                buttonClass += " " + UNRELEASED;
+            var buttonClass = "pick_button hover unit_background rarity_"+nowVal;
+            var innerClass = "pick_button_inner_text";
+            if (v.isUnreleased) {
+                innerClass += " " + UNRELEASED;
             }
-            var item = $('<div></div>').addClass(buttonClass).html(v.name).attr("value", v.id).click(function() {
-                addChar(mPickerGrid, $(this).attr("value"));
+            var item = $('<div></div>').addClass(buttonClass).click(function() {
+                addChar(mPickerGrid, v.id);
             });
+
+            var name = v.displayName ? v.displayName : v.name;
+
+
+            // Add unit tile buffs to button, if applicable
+            if (auraAttr != null) {
+                var effect = v.aura.effect[auraAttr];
+                var effectStrength = effect["5"] ? effect["5"] : (effect["0"] ? effect["0"] : effect["1"]);
+                var tileBuffLabel = $('<span></span>').addClass('pick_button_buff_number').html(effectStrength + '%');
+                var buffGrid = $('.factory .aura_container').clone();
+                buffGrid.addClass('aura_container_small')
+                buffGrid.find('.aura').addClass('aura_small').removeClass('aura');
+                updateAuraUI(buffGrid, v);
+
+                item.append(buffGrid);
+                item.append(tileBuffLabel);
+            }
+
+            // Add unit name to button
+            var innerText = $('<span></span>').addClass(innerClass).html(name).attr("value", v.id);
+            item.append(innerText);
+
+            item.css('background-image', 'url("assets/buttons/' + parseInt(v.id) + '.png")');
+
+            if (v.isUnreleased) {
+                item.css('filter','grayscale(100%)');
+            }
+            /*
+            if (v.id == 26) {
+                item.css('background-color', 'white');
+            }
+            */
 
             $('<td></td>').append(item).appendTo(row);
 
@@ -888,13 +1249,19 @@ function updatePickerFairy() {
         });
         var items = [];
         grepList.forEach(function(v) {
-            var buttonClass = "pick_button hover "+FAIRY_TYPE[i];
+            var buttonClass = "pick_button hover fairy_background "+FAIRY_TYPE[i];
+			var innerClass = "pick_button_inner_text";
+            // Add unit-fairy name to button
+            var innerText = $('<span></span>').addClass(innerClass).html(v.name);
+            
+			
             if (isFairyExtra(v.id)) {
                 buttonClass += " " + EXTRA;
             }
-            var item = $('<div></div>').addClass(buttonClass).html(v.name).attr("value", v.id).click(function() {
+            var item = $('<div></div>').addClass(buttonClass).append(innerText).attr("value", v.id).click(function() {
                 addFairy($(this).attr("value"));
             });
+			item.css('background-image', 'url("assets/fairyButtons/' + parseInt(v.id) + '.png")');
             items.push(item);
         });
 
@@ -931,9 +1298,16 @@ function addFairy(id) {
 
     $(".fairy_container .select_fairy").hide();
     $(".fairy_container .fairy_control_container").show();
-    $(".fairy_container .fairy_control_container .fairy").html(mFairy.name);
+	
+    // Add unit name to button
+    var innerText = $('<span></span>').addClass("pick_button_inner_text").html(mFairy.name);
+    $(".fairy_container .fairy_control_container .fairy").html(innerText);
+	
     $(".fairy_container .fairy_control_container .fairy").removeClass(FAIRY_TYPE.join(" ") + " " + EXTRA);
     $(".fairy_container .fairy_control_container .fairy").addClass(mFairy.type);
+	
+
+	$(".fairy_container .fairy_control_container .fairy").css('background-image', 'url("assets/fairyButtons/' + mFairy.id + '.png")');
     if (isFairyExtra(id)) {
         $(".fairy_container .fairy_control_container .fairy").addClass(EXTRA);
     }
@@ -1083,24 +1457,23 @@ function addChar(grid, id) {
     } else {
         $("." + mGridToUI[grid] + " .char .skill_effect").hide();
     }
-    if (skillType == "passive" || skillType == "battleStart") {
-        $("." + mGridToUI[grid] + " .char .skill_control").prop("disabled", true);
+    if (skillType.type == "passive" || skillType.type == "battleStart") {
         $("." + mGridToUI[grid] + " .char .skill_control").prop("checked", true);
+        $("." + mGridToUI[grid] + " .char .skill_control").prop("disabled", true);
     } else {
+        $("." + mGridToUI[grid] + " .char .skill_control").prop("checked", true);
         $("." + mGridToUI[grid] + " .char .skill_control").prop("disabled", false);
-        $("." + mGridToUI[grid] + " .char .skill_control").prop("checked", false);
-        $(".skill_all").prop("checked", false);
+    }
 
-        if ('stack' in mGridToChar[grid].skill && mGridToChar[grid].skill.stack > 0) {
-            $("." + mGridToUI[grid] + " .char .skill_stack").show();
-            $("." + mGridToUI[grid] + " .char .skill_stack").empty();
-            for (var i = mGridToChar[grid].skill.stack; i >= 0; i--) {
-                $("." + mGridToUI[grid] + " .char .skill_stack").append(
-                        $("<option></option>").attr("value", i).text(i + mStringData.stack));
-            }
-        } else {
-            $("." + mGridToUI[grid] + " .char .skill_stack").hide();
+    if ('stack' in mGridToChar[grid].skill && mGridToChar[grid].skill.stack > 0) {
+        $("." + mGridToUI[grid] + " .char .skill_stack").show();
+        $("." + mGridToUI[grid] + " .char .skill_stack").empty();
+        for (var i = mGridToChar[grid].skill.stack; i >= 0; i--) {
+            $("." + mGridToUI[grid] + " .char .skill_stack").append(
+                    $("<option></option>").attr("value", i).text(i + mStringData.stack));
         }
+    } else {
+        $("." + mGridToUI[grid] + " .char .skill_stack").hide();
     }
     if ('mod' in t && t.mod) {
         ui.find(".level").hide();
@@ -1225,10 +1598,12 @@ function updateEquipmentUI(charObj) {
         var ii = i*1 + 1;
         if (charLevel >= CHAR_LEVEL_EQUIPMENT[i]) {
             var text = mStringData[classificationList[ii]];
+			var image = mStringData[classificationList[ii]];
             if (charObj.equipment[ii] != "") {
                 text = getEquipmentById(charObj.equipment[ii]).name;
+				image = getEquipmentById(charObj.equipment[ii]).equipIcon;
             }
-            charObj.ui.equipmentUI.find(".equipment_"+ii).html(text).click(function() {
+            charObj.ui.equipmentUI.find(".equipment_"+ii).html(text).css('background-image', 'url("assets/equipButtons/' + image + '.png")').addClass("button equipped_background").click(function() {
                 openDialogPickerEquipment($(this).attr("equipment_index"), $(this).attr("grid_value"));
             });
         } else {
@@ -1504,7 +1879,7 @@ function updatePerformance() {
             cp.find(".value").html("-").end()
             .find(".value.name").html(charObj.name).css('color', mColors[index - 1]).end()
             .find(".value.hp").html(charObj.cb.hp).end()
-            .find(".value.dmg").html(charObj.cb.attr.dmg).end()
+            .find(".value.dmg").html(charObj.cb.attr.displayDmg).end()
             .find(".value.hit").html(charObj.cb.attr.hit).end()
             .find(".value.dodge").html(charObj.cb.attr.dodge).end()
             .find(".value.fireOfRate").html(charObj.cb.attr.fireOfRate).end()
@@ -1512,6 +1887,7 @@ function updatePerformance() {
             .find(".value.criRate").html(charObj.cb.attr.criRate).end()
             .find(".value.criDmg").html(charObj.cb.attr.criDmg + "%").end()
             .find(".value.skillAttack").html(skillAttack).end()
+            .find(".value.targetCount").html(charObj.cb.attr.targetCount).end()
             .find(".value.armorPiercing").html(charObj.c.armorPiercing).end()
             .find(".value.ammoCount").html(charObj.cb.ammoCount).end()
             .find(".value.dps").html(charObj.cb.attr.dps.toFixed(2)).end()
@@ -1544,44 +1920,8 @@ function updatePerformance() {
         $(".fairy_performance").find(".value").html("-");
     }
 
-    var preLoadCode = {};
-    var formation = [];
-    var fairy = {};
-    for (var i in mGridHasChar) {
-        var grid = getGridByUIValue(mGridHasChar[i]);
-        if (mGridToChar[grid] != "") {
-            var charObj = mGridToChar[grid];
-
-            var charRow = {};
-            charRow.g = grid;
-            charRow.id = charObj.id;
-            if (charObj.c.modLevel > 0) {
-                charRow.modlv = charObj.c.modLevel;
-            } else {
-                charRow.lv = charObj.c.level;
-            }
-            if (charObj.c.modLevel >= 2) {
-                charRow.mod2slv = charObj.c.mod2SkillLevel;
-            }
-            charRow.slv = charObj.c.skillLevel;
-            charRow.eq = charObj.equipment_code;
-            formation.push(charRow);
-            index++;
-        }
-    }
-
-    if (mFairy != null) {
-        fairy.id = mFairy.id;
-        fairy.lv = mFairy.level;
-        fairy.r = mFairy.rarity;
-        fairy.slv = mFairy.skillLevel;
-        fairy.m = mFairy.mastery.id;
-    }
-    preLoadCode["char"] = formation;
-    preLoadCode["fairy"] = fairy;
-
+    let preLoadCode = generateSaveData();
 	
-
     var url = [location.protocol, '//', location.host, location.pathname].join('') + "?pre=" + JSON.stringify(preLoadCode);
     var urlFull = url +
 			"&repeat=" + $(".skill_control:checked").map(function() { return this.value; }).get().join(',') +"," +
@@ -1675,7 +2015,7 @@ function setEquipment(grid) {
 		charObj.equipment[3] = (battleisNight?16:8);
 	}
 
-	if (charObj.name == "競爭者") {
+	if (charObj.name == "Contender") {
 		charObj.equipment[2] = 20;
 	}
 	if (charObj.name == "C-MS") {
@@ -1696,13 +2036,13 @@ function setEquipment(grid) {
 	if (charObj.name == "Kar98k") {
 		charObj.equipment[2] = 105;
 	}
-	if (charObj.name == "春田") {
+	if (charObj.name == "Springfield") {
 		charObj.equipment[1] = 59;
 	}
-	if (charObj.name == "莫辛-納甘") {
+	if (charObj.name == "Mosin-Nagant") {
 		charObj.equipment[3] = 86;
 	}
-	if (charObj.name == "莫辛-納甘" && charObj.mod) {
+	if (charObj.name == "Mosin-Nagant" && charObj.mod) {
 		charObj.equipment[3] = 86;
 		charObj.equipment[2] = 111;
 	}
@@ -1716,7 +2056,7 @@ function setEquipment(grid) {
 	/*if (charObj.name == "MG3") {
 		charObj.equipment[3] = 107;
 	}*/
-	if (charObj.name == "阿梅利") {
+	if (charObj.name == "Ameli") {
 		charObj.equipment[3] = 94;
 	}
 	if (charObj.name == "M4A1" && charObj.mod) {
@@ -1745,7 +2085,7 @@ function setEquipment(grid) {
 		charObj.equipment[3] = 32;
 	}
 	
-	if (charObj.name == "56-1式") {
+	if (charObj.name == "Type56-1") {
 		charObj.equipment[1] = (battleisNight?16:85);
 	}
 	if (charObj.name == "9A-91") {
@@ -1755,7 +2095,7 @@ function setEquipment(grid) {
 		charObj.equipment[1] = (battleisNight?16:85);
 	}
 
-	if (charObj.name == "納甘左輪" && charObj.mod) {
+	if (charObj.name == "Nagant M1895" && charObj.mod) {
 		if ((grid == 7) || (grid == 4) || (grid == 1)) {
 			charObj.equipment[1] = (battleisNight?16:113);
 		} else {
@@ -1765,7 +2105,7 @@ function setEquipment(grid) {
 	if (charObj.name == "FN-49" && charObj.mod) {
 		charObj.equipment[2] = 104;
 	}
-	if (charObj.name == "64式" && charObj.mod) {
+	if (charObj.name == "Type64" && charObj.mod) {
 		charObj.equipment[3] = 103;
 	}
 	if (charObj.name == "M1911" && charObj.mod) {
@@ -1861,6 +2201,11 @@ function getChar(id){
         if (obj.type == "rf" || obj.type == "sg") obj[CRI_RATE] = 40;
         if (obj.type == "smg" || obj.type == "mg") obj[CRI_RATE] = 5;
     }
+    if (obj.type == "sg") {
+        obj["targetCount"] = 3;
+    } else {
+        obj["targetCount"] = 1;
+    }
 
     var attackFrameData = findById(mAttackFrameData, id)
     if (attackFrameData) obj["attackFrame"] = attackFrameData.frame;
@@ -1883,6 +2228,13 @@ function updateCharObsForBase() {
 }
 
 function updateCharObsForBase2(charObj, grid) {
+    var enemyCount = $('.battle_control .enemyCount').val();
+    if ($.isNumeric(enemyCount)) {
+        enemyCount = parseInt(enemyCount);
+    } else {
+        enemyCount = 1;
+    }
+
     charObj.ui = {};
     charObj.ui.controlUI = gridToUi(grid, CONTROL_CONTAINER);
     charObj.ui.equipmentUI = gridToUi(grid, EQUIPMENT_CONTAINER);
@@ -1918,9 +2270,11 @@ function updateCharObsForBase2(charObj, grid) {
     charObj.c.link = getLink(charObj.c.level);
     charObj.c.criRate = charObj.criRate;
     charObj.c.criDmg = charObj.criDmg;
+    charObj.c.targetCount = Math.min(enemyCount, charObj.targetCount);
     charObj.c.movementSpeed = charObj.movementSpeed;
     charObj.c.shield = 0;
     charObj.c.reducedDamage = 1;
+    charObj.c.dmg_multiple = 1;
     if (charObj.type == "mg" || charObj.type == "sg") {
         charObj.c.ammoCount = parseInt(charObj.ammoCount);
     }
@@ -2165,13 +2519,33 @@ function updateCharObsForAura() {
         if (mGridToChar[GRIDS[i]] != "") {
             var charObj = mGridToChar[GRIDS[i]];
 
-            charObj.c.dmg = Math.floor(charObj.c.dmg * (1 + 0.01 * charObj.c.aura_dmg));
-            charObj.c.hit = Math.floor(charObj.c.hit * (1 + 0.01 * charObj.c.aura_hit));
-            charObj.c.dodge = Math.floor(charObj.c.dodge * (1 + 0.01 * charObj.c.aura_dodge));
-            charObj.c.fireOfRate = Math.floor(charObj.c.fireOfRate * (1 + 0.01 * charObj.c.aura_fireOfRate));
-            charObj.c.criRate = Math.floor(charObj.c.criRate * (1 + 0.01 * charObj.c.aura_criRate));
+            charObj.c.dmg = charObj.c.dmg * (1 + 0.01 * charObj.c.aura_dmg);
+            charObj.c.hit = charObj.c.hit * (1 + 0.01 * charObj.c.aura_hit);
+            charObj.c.dodge = charObj.c.dodge * (1 + 0.01 * charObj.c.aura_dodge);
+            charObj.c.fireOfRate = charObj.c.fireOfRate * (1 + 0.01 * charObj.c.aura_fireOfRate);
+            charObj.c.criRate = charObj.c.criRate * (1 + 0.01 * charObj.c.aura_criRate);
             charObj.c.cooldownTimeReduction = Math.min(30, charObj.c.aura_cooldownTime);
-            charObj.c.armor = Math.floor(charObj.c.armor * (1 + 0.01 * charObj.c.aura_armor));
+            charObj.c.armor = charObj.c.armor * (1 + 0.01 * charObj.c.aura_armor);
+
+            let aura_keys = Object.keys(charObj.c).filter(function(k) {
+                return k.indexOf('aura_') == 0;
+            });
+
+            let buffContainer = $(`.grid_container_${parseInt(i)+1} .buffs`).empty();
+            
+            let count = 0;
+            for (let key of aura_keys) {
+                console.log(`Buff render pos ${parseInt(i)+1} key ${key}`)
+                let buffAmount = charObj.c[key];
+                if (buffAmount > 0) {
+                    let buffDisplay = $('<span></span>').addClass(`buff_${key} buff_inner`).html(`${buffAmount}%`).css('background-image', `url("assets/buffs/buff_${key}.png` );
+                    buffContainer.prepend(buffDisplay);
+                    if (++count >= 2) {
+                        buffContainer.prepend('<br />');
+                        count = 0;
+                    }
+                }
+            }
         }
     }
 }
@@ -2205,6 +2579,18 @@ function updateCharObsForUseSkill() {
                 if (attackMultiplyExtra != null) {
                     charObj.cb.skillAttack += attackMultiplyExtra;
                 }
+
+                /*
+                if ('radius' in charObj.skill) {
+                    var enemyCount = $('.battle_control .enemyCount').val();
+                    if ($.isNumeric(enemyCount)) {
+                        enemyCount = parseInt(enemyCount);
+                    } else {
+                        enemyCount = 1;
+                    }
+                    charObj.cb.skillAttack *= enemyCount;
+                }
+                */
 
                 if (charObj.id == "183") {
                     useSkillForCalculateBattle(charObj, ally, enemy);
@@ -2447,6 +2833,11 @@ function useSkillForCalculateBattle2(obj, ally, enemy, skillEffect, skillUsedBy)
                     var targetGrid = getAuraTargetGrid(charObj);
                     var grepList = $.grep(ally, function(e) {return targetGrid.indexOf(e.c.selfGrid) >= 0;});
                     updateForSkillCalculateBattle(tSkill, grepList, skillEffect.time.val, "buff");
+                } else if (tSkillTarget == "self_and_aura_grid") {
+                    var targetGrid = getAuraTargetGrid(charObj);
+                    var grepList = $.grep(ally, function(e) {return targetGrid.indexOf(e.c.selfGrid) >= 0;});
+                    grepList.push(charObj);
+                    updateForSkillCalculateBattle(tSkill, grepList, skillEffect.time.val, "buff");
                 } else if (tSkillTarget == "self_column_grid") {
                     var targetGrid = getColumnTargetGrid(charObj);
                     var grepList = $.grep(ally, function(e) {return targetGrid.indexOf(e.c.selfGrid) >= 0;});
@@ -2511,6 +2902,11 @@ function useStatEffectForCalculateBattle(user, ally, enemy, effect) {
     if (effect.target == "self_aura_grid") {
         var targetGrid = getAuraTargetGrid(user);
         targets = ally.filter(v => targetGrid.indexOf(v.c.selfGrid) >= 0);
+    }
+    if (effect.target == "self_and_aura_grid") {
+        var targetGrid = getAuraTargetGrid(user);
+        targets = ally.filter(v => targetGrid.indexOf(v.c.selfGrid) >= 0);
+        targers.push(user);
     }
     if (effect.target == "allyInFrontOfMe") {
         var targetGrid = getFrontTargetGrid(user);
@@ -2762,11 +3158,13 @@ function updateAttrBeforAction(charObj) {
     });
 
 //    charObj.cb.attr.dmg = Math.floor(charObj.cb.attr.dmg);
+    charObj.cb.attr.displayDmg = Math.floor(charObj.cb.attr.dmg);
     charObj.cb.attr.hit = Math.max(1, Math.floor(charObj.cb.attr.hit));
     charObj.cb.attr.dodge = Math.floor(charObj.cb.attr.dodge);
     charObj.cb.attr.fireOfRate = Math.floor(charObj.cb.attr.fireOfRate);
     charObj.cb.attr.criRate = charObj.cb.attr.criRate;
     charObj.cb.attr.armor = Math.floor(charObj.cb.attr.armor);
+    charObj.cb.attr.targetCount = Math.max(1, charObj.cb.attr.targetCount);
 
     if (charObj.type == "rf" || charObj.type == "ar") charObj.cb.attr.fireOfRate = Math.min(charObj.cb.attr.fireOfRate, 120);
     else if (charObj.type == "sg") charObj.cb.attr.fireOfRate = Math.min(charObj.cb.attr.fireOfRate, 60);
@@ -2791,6 +3189,13 @@ function getCriAttackExpectedValue(criRate, criDmg) {
 }
 
 function calculateActionDmg(charObj, enemy, mode) {
+    var enemyCount = $('.battle_control .enemyCount').val();
+    if ($.isNumeric(enemyCount)) {
+        enemyCount = parseInt(enemyCount);
+    } else {
+        enemyCount = 1;
+    }
+
     var isCanCri = true;
     var attackMultiplyWithLinks = 1.0;
     var link = 1;
@@ -2799,6 +3204,12 @@ function calculateActionDmg(charObj, enemy, mode) {
     var isIgnoreArmor = false;
     var attackList = [];
     var attackNoLinkList = [];
+
+    if ('effect' in charObj.skill && 'targetCount' in charObj.skill.effect && charObj.c.isUseSkill) {
+        charObj.cb.attr.targetCount = Math.min(enemyCount, getSkillAttrValByLevel(charObj, "targetCount"));
+    }
+    
+    var targetsHit = charObj.cb.attr.targetCount;
 
     if ('attackTimes' in charObj.cb.attr) {
         attackTimes = charObj.cb.attr.attackTimes;
@@ -2819,6 +3230,7 @@ function calculateActionDmg(charObj, enemy, mode) {
     if ('everyAttack' in charObj.skill) {
         if ('extraAttack' in charObj.skill.effect) {
             var rate = getSkillAttrValByLevel(charObj, "extraAttack", "rate");
+            //rate = 100 * (1 - Math.pow(1 - (0.01 * rate), charObj.c.link));
             //extraAttack = getCriAttackExpectedValue(100, charObj.cb.attr.criDmg) * rate * 0.01;
             attackList.push(1.5 * rate * 0.01);
         }
@@ -2865,12 +3277,15 @@ function calculateActionDmg(charObj, enemy, mode) {
     }
     if (isCanCri) harm *= criAttackE;
     if (!isCertainToHit) harm *= charObj.cb.attr.hitRate;
+    harm *= targetsHit * charObj.cb.attr.dmg_multiple;
     harm = harm * enemy.cb.attr.reducedDamage * link * attackTimes;
+
     harm += attackNoLinkList.filter(v => v > 0).map(v => {
         v *= charObj.cb.attr.dmg;
         v = Math.max(1, v + Math.min(2, charObj.c.armorPiercing - enemy.cb.attr.armor));
         v *= criAttackE;
         v *= charObj.cb.attr.hitRate;
+        v *= targetsHit;
         return v * enemy.cb.attr.reducedDamage;
     }).reduce((t, v) => t + v, 0);
     harm += attackList.filter(v => v > 0).map(v => {
@@ -2878,9 +3293,12 @@ function calculateActionDmg(charObj, enemy, mode) {
         v = Math.max(1, v + Math.min(2, charObj.c.armorPiercing - enemy.cb.attr.armor));
         v *= criAttackE;
         v *= charObj.cb.attr.hitRate;
+        v *= targetsHit;
         return v * enemy.cb.attr.reducedDamage * link;
     }).reduce((t, v) => t + v, 0);
+
     charObj.cb.attr.dmg_single = harm;
+
     if (mode == ACTION) {
         charObj.cb.attr.dmg_frame = charObj.cb.attr.dmg_single;
     } else if (mode == PERFORMANCE) {
@@ -2889,6 +3307,13 @@ function calculateActionDmg(charObj, enemy, mode) {
         charObj.cb.attr.dps = charObj.cb.attr.dmg_single * attackTimesPerSecond;
         charObj.cb.skillAttack = charObj.cb.skillAttack * charObj.cb.attr.dmg * enemy.cb.attr.reducedDamage;
         if ('radius' in charObj.skill) {
+            var enemyCount = $('.battle_control .enemyCount').val();
+            if ($.isNumeric(enemyCount)) {
+                enemyCount = parseInt(enemyCount);
+            } else {
+                enemyCount = 1;
+            }
+            charObj.cb.skillAttack *= enemyCount;
         } else {
             charObj.cb.skillAttack *= link;
         }
@@ -3373,11 +3798,15 @@ function battleSimulation(endTime, walkTime, ally, enemy, isSimulation) {
                         if (mDmgLinkMode == MULTI_LINK) {
                             link = charObj.c.link;
                         }
+
+                        let radiusMultiplier = 1;
+
                         if ('radius' in charObj.skill) {
                             link = 1;
+                            radiusMultiplier = enemyCount;
                         }
 
-                        harmThisFrame += parseInt(charObj.cb.attr.dmg * attackMultiply * link * enemy.cb.attr.reducedDamage);
+                        harmThisFrame += parseInt(charObj.cb.attr.dmg * attackMultiply * link * enemy.cb.attr.reducedDamage * radiusMultiplier);
 
                         if ('skillTimes' in charObj.skill && charObj.cb.skillUsedTimes < charObj.skill.skillTimes) {
                             charObj.cb.actionType = PREPARE_TO_USE_SKILL;
