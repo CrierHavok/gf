@@ -14,17 +14,17 @@ var _dpsSmgAtGrid5 = false;
 
 var __gridToUi = null;
 
-var dpsSmg = [
-		135, //SR-3MP
-		136, //PP-19
-		20, //Vector
-		203, //密獾 Honey Badger
-		22, //PPS-43
-		177, //KLIN
-		94, //Type64
-		27, //Skorpion
-		93 //IDW
-	];
+//var dpsSmg = [
+		//135, //SR-3MP
+		//136, //PP-19
+		//20, //Vector
+		//203, //密獾 Honey Badger
+		//22, //PPS-43
+		//177, //KLIN
+		//94, //Type64
+		//27, //Skorpion
+		//93 //IDW
+	//];
 
 $( document ).ready(function () {
 
