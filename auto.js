@@ -23,7 +23,7 @@ var dpsSmg = [
 		177, //KLIN
 		94, //Type64
 		27, //Skorpion
-		93, //IDW
+		93 //IDW
 	];
 
 $( document ).ready(function () {
