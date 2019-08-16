@@ -18,12 +18,12 @@ var dpsSmg = [
 		135, //SR-3MP
 		136, //PP-19
 		20, //Vector
-		00203, //密獾 Honey Badger
+		203, //密獾 Honey Badger
 		22, //PPS-43
-		00177, //KLIN
-		20094, //Type64
+		177, //KLIN
+		94, //Type64
 		27, //Skorpion
-		20093 //IDW
+		93, //IDW
 	];
 
 $( document ).ready(function () {
